@@ -1,4 +1,4 @@
-name: Build Surge Domain-Set
+name: Build Surge Domain-Set & IP Rule-Set
 
 on:
   schedule:
@@ -15,7 +15,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: build-domain-set
+  group: build-lists
   cancel-in-progress: false
 
 jobs:
@@ -39,10 +39,10 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add ad-domain-set.txt
+          git add ad-domain-set.txt ad-ip-ruleset.txt
           if git diff --cached --quiet; then
             echo "No changes to commit."
           else
-            git commit -m "chore: update domain-set ($(date -u +%Y-%m-%d))"
+            git commit -m "chore: update domain-set & ip rule-set ($(date -u +%Y-%m-%d))"
             git push
           fi

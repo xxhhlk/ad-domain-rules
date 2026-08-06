@@ -1,7 +1,8 @@
 # ad-domain-rules
 
-A merged **Surge `DOMAIN-SET`** blocklist, automatically built from a set of
-AdGuard Home / anti-PCDN / anti-HTTPDNS rule sources.
+A merged **Surge `DOMAIN-SET`** blocklist plus an **IP `RULE-SET`** blocklist,
+automatically built from a set of AdGuard Home / anti-PCDN / anti-HTTPDNS rule
+sources.
 
 ## Output
 
@@ -38,6 +39,27 @@ AdGuard Home / anti-PCDN / anti-HTTPDNS rule sources.
 
   (or `policy` / `DIRECT` / any policy you prefer instead of `REJECT`).
 
+- **`ad-ip-ruleset.txt`** — a sorted, de-duplicated **Surge `RULE-SET`** of IP
+  rules, one per line, each carrying the `REJECT-NO-DROP` action. IPv4 becomes
+  `IP-CIDR,…` and IPv6 becomes `IP-CIDR6,…`; a bare address is normalized to a
+  host route (`/32` for IPv4, `/128` for IPv6). It is built from the live
+  AdGuardHome IP dump (`agh-api/ips`). Example lines:
+
+  ```text
+  IP-CIDR,1.2.3.4/32,REJECT-NO-DROP
+  IP-CIDR6,2a11::/128,REJECT-NO-DROP
+  ```
+
+  Use it as a Surge rule-set:
+
+  ```ini
+  [Rule]
+  RULE-SET,https://raw.githubusercontent.com/xxhhlk/ad-domain-rules/main/ad-ip-ruleset.txt
+  ```
+
+  (the `REJECT-NO-DROP` action is already baked into every line, so no policy
+  argument is needed when referencing it).
+
 ## How it is built
 
 A GitHub Actions workflow (`.github/workflows/update.yml`) runs
@@ -55,7 +77,12 @@ A GitHub Actions workflow (`.github/workflows/update.yml`) runs
    rule-level negations (`-…` / `||-…`), disabled meta-rules (`$badfilter`) and
    anything that is not a valid domain.
 4. Sorts and de-duplicates, merging per-domain forms, then writes
-   `ad-domain-set.txt` and commits it back.
+   `ad-domain-set.txt`.
+5. Separately fetches the live AdGuardHome IP dump (`agh-api/ips`), parses each
+   plain IPv4/IPv6 address or CIDR (normalizing bare addresses to `/32`/`/128`),
+   de-duplicates, and writes `ad-ip-ruleset.txt` with the `REJECT-NO-DROP`
+   action on every line.
+6. Commits both generated files back to the repo.
 
 If a single source is temporarily unreachable, the build continues with the
 others and just logs a warning — it never fails the whole job because one

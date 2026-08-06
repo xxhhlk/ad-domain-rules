@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
-"""Convert AdGuard Home filter rules from multiple sources into a Surge domain-set file.
+"""Convert AdGuard Home filter rules into Surge block lists.
 
-The conversion is *semantic* -- each source rule type maps to the Surge
-domain-set form that preserves its original blocking scope (per the AdGuard
-DNS filtering syntax docs and Surge's domain-set spec):
+Produces two files:
+
+  1. ad-domain-set.txt  -- a Surge DOMAIN-SET (one domain per line) built from
+     many AdGuard/DNS/PCDN/HTTPDNS sources. The domain-set conversion is
+     *semantic*: each source rule type maps to the Surge form that preserves
+     its original blocking scope (per the AdGuard DNS filtering syntax docs and
+     Surge's domain-set spec):
 
   AdGuard rule                       AdGuard scope              Surge form
   --------------------------------  -------------------------  --------------------------
@@ -27,6 +31,7 @@ Notes:
     whitelist exceptions (@@...), rule-level negations (-... / ||-...), and
     disabled meta-rules ($badfilter) are all skipped.
 """
+import ipaddress
 import re
 import ssl
 import sys
@@ -77,6 +82,11 @@ SOURCES = [
 OUTPUT = "ad-domain-set.txt"
 TIMEOUT = 60
 USER_AGENT = "ad-domain-rules-builder/1.0"
+
+# Live AdGuardHome IP dump, converted into a Surge IP rule-set (action baked in).
+IP_SOURCE = "https://globalbal.xxhhlk.com:8880/agh-api/ips"
+IP_OUTPUT = "ad-ip-ruleset.txt"
+IP_POLICY = "REJECT-NO-DROP"
 
 # A valid domain: at least one letter somewhere; every label must START and END
 # with an alphanumeric (so no leading/trailing hyphens like "-ad" or "ad-").
@@ -196,7 +206,7 @@ def extract(line):
     return None
 
 
-def main():
+def build_domain_set():
     # domain -> set of forms seen ('suffix' / 'subonly' / 'exact')
     forms = {}
     stats = {"sources": 0, "failed": 0, "lines": 0}
@@ -248,6 +258,63 @@ def main():
         f"[INFO] forms -> suffix={n_suffix} subonly={n_subonly} exact={n_exact} "
         f"(all in {OUTPUT}, {ts})"
     )
+
+
+def parse_ip(line):
+    """Parse a plain IPv4/IPv6 address or CIDR line into a Surge rule tuple
+    (rule_type, normalized_cidr), or None if invalid / a comment.
+
+    A bare address (no prefix) is normalized to its host route:
+    IPv4 -> /32, IPv6 -> /128. This is the faithful, explicit form.
+    """
+    s = line.strip()
+    if not s or s.startswith(("!", "#")):
+        return None
+    try:
+        net = ipaddress.ip_network(s, strict=False)
+    except ValueError:
+        return None
+    rtype = "IP-CIDR" if net.version == 4 else "IP-CIDR6"
+    return (rtype, str(net))
+
+
+def build_ip_ruleset():
+    """Fetch the live AdGuardHome IP dump and emit a Surge IP rule-set whose
+    every line carries the REJECT-NO-DROP action, e.g.:
+
+        IP-CIDR,1.2.3.4/32,REJECT-NO-DROP
+        IP-CIDR6,2a11::/128,REJECT-NO-DROP
+
+    A bare address is normalized to a host route (/32 for IPv4, /128 for IPv6).
+    If the source is unreachable we skip writing so the last good file is kept.
+    """
+    rows = set()
+    try:
+        text = fetch(IP_SOURCE)
+    except Exception as exc:  # noqa: BLE001 - keep the last good file on failure
+        print(f"[WARN] failed to fetch {IP_SOURCE}: {exc}", file=sys.stderr)
+        return
+    scanned = 0
+    for line in text.splitlines():
+        scanned += 1
+        p = parse_ip(line)
+        if p:
+            rows.add(p)
+    out = sorted(rows)
+    with open(IP_OUTPUT, "w", encoding="utf-8") as fh:
+        if out:
+            fh.write("\n".join(f"{t},{c},{IP_POLICY}" for t, c in out) + "\n")
+    n4 = sum(1 for t, _ in out if t == "IP-CIDR")
+    n6 = len(out) - n4
+    print(
+        f"[INFO] ip ruleset -> IPv4={n4} IPv6={n6} scanned={scanned} "
+        f"(all in {IP_OUTPUT}, action={IP_POLICY})"
+    )
+
+
+def main():
+    build_domain_set()
+    build_ip_ruleset()
 
 
 if __name__ == "__main__":
