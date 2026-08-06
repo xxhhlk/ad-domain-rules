@@ -206,6 +206,19 @@ def extract(line):
     return None
 
 
+def _is_covered(domain, suffix_set):
+    """Return True if `domain` (a bare host) is already matched by some
+    DOMAIN-SUFFIX entry '.X' with X in suffix_set -- i.e. X == domain or X is a
+    parent suffix of domain. Such a domain does not need its own exact / sub-only
+    line because the broader suffix already blocks every matching host.
+    """
+    parts = domain.split(".")
+    for i in range(len(parts)):
+        if ".".join(parts[i:]) in suffix_set:
+            return True
+    return False
+
+
 def build_domain_set():
     # domain -> set of forms seen ('suffix' / 'subonly' / 'exact')
     forms = {}
@@ -231,19 +244,39 @@ def build_domain_set():
     #   - 'exact' + 'subonly' (union = dom+subs) -> ".domain"
     #   - 'subonly' only                         -> "*.domain"
     #   - 'exact' only                           -> "domain"
+    suffix_set = set()  # bare domains emitted as ".domain" (DOMAIN-SUFFIX)
     out = []
-    n_suffix = n_subonly = n_exact = 0
     for dom in sorted(forms):
         f = forms[dom]
         if "suffix" in f or ("subonly" in f and "exact" in f):
+            suffix_set.add(dom)
             out.append("." + dom)
-            n_suffix += 1
         elif "subonly" in f:
             out.append("*." + dom)
-            n_subonly += 1
         else:
             out.append(dom)
-            n_exact += 1
+
+    # Cross-domain parent-suffix absorption: an exact ("domain") or sub-only
+    # ("*.domain") line is purely redundant when a broader ".X" suffix entry
+    # already exists for X == domain or one of its parent suffixes, because that
+    # DOMAIN-SUFFIX matches every host the narrower line would match. Dropping
+    # these changes nothing about blocking behavior and shrinks the list.
+    absorbed = 0
+    filtered = []
+    for ln in out:
+        if ln.startswith("."):
+            filtered.append(ln)
+            continue
+        dom = ln[2:] if ln.startswith("*.") else ln
+        if _is_covered(dom, suffix_set):
+            absorbed += 1
+            continue
+        filtered.append(ln)
+    out = sorted(filtered)
+
+    n_suffix = sum(1 for ln in out if ln.startswith("."))
+    n_subonly = sum(1 for ln in out if ln.startswith("*."))
+    n_exact = len(out) - n_suffix - n_subonly
 
     with open(OUTPUT, "w", encoding="utf-8") as fh:
         if out:
@@ -256,7 +289,7 @@ def build_domain_set():
     )
     print(
         f"[INFO] forms -> suffix={n_suffix} subonly={n_subonly} exact={n_exact} "
-        f"(all in {OUTPUT}, {ts})"
+        f"absorbed_by_parent_suffix={absorbed} (all in {OUTPUT}, {ts})"
     )
 
 
