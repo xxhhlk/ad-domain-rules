@@ -1,0 +1,48 @@
+name: Build Surge Domain-Set
+
+on:
+  schedule:
+    # Every Monday at 03:17 UTC (off-peak, odd minute to avoid the :00 stampede)
+    - cron: "17 3 * * 1"
+  workflow_dispatch: {}      # allow manual runs from the Actions tab
+  push:
+    branches: [main]
+    paths:
+      - "scripts/**"
+      - ".github/workflows/**"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-domain-set
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run converter
+        run: python scripts/build.py
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ad-domain-set.txt
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "chore: update domain-set ($(date -u +%Y-%m-%d))"
+            git push
+          fi
