@@ -1,3 +1,6 @@
+# Triggers: weekly (Mon 04:17 UTC), manual dispatch, or any push touching this
+# file or the converter script. On success it commits the generated .sgmodule
+# files into shadowrocket/.
 name: Update Shadowrocket Modules
 
 on:
