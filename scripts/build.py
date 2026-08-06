@@ -169,10 +169,15 @@ def main():
             if dom:
                 domains.add(dom)
 
+    # Surge DOMAIN-SET semantics: a bare "example.com" is an EXACT match (does
+    # not catch subdomains), while a leading-dot ".example.com" is a
+    # DOMAIN-SUFFIX match (catches the domain AND all subdomains) -- this is the
+    # form AdGuard's ||domain^ maps to and is what ad filtering wants. So we
+    # always emit the leading-dot form.
     out = sorted(domains)
     with open(OUTPUT, "w", encoding="utf-8") as fh:
         if out:
-            fh.write("\n".join(out) + "\n")
+            fh.write("\n".join("." + d for d in out) + "\n")
 
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     print(

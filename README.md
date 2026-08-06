@@ -5,8 +5,14 @@ AdGuard Home / anti-PCDN / anti-HTTPDNS rule sources.
 
 ## Output
 
-- **`ad-domain-set.txt`** — a plain, sorted, de-duplicated list of domains
-  (one per line). Use it directly as a Surge domain-set:
+- **`ad-domain-set.txt`** — a sorted, de-duplicated list of domains in Surge
+  **DOMAIN-SET** format. Every entry uses the leading-dot (`.example.com`) form,
+  which Surge treats as `DOMAIN-SUFFIX`: it blocks the domain **and all of its
+  subdomains** (this is the form AdGuard's `||example.com^` maps to and is what
+  ad/PCDN/HTTPDNS filtering needs). A bare `example.com` (no dot) would be an
+  exact match only and would miss subdomains, so it is never emitted.
+
+  Use it directly as a Surge domain-set:
 
   ```ini
   [Rule]
