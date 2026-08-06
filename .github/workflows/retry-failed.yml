@@ -35,7 +35,7 @@ jobs:
         with:
           script: |
             const { owner, repo } = context.repo;
-            const WINDOW_MS = 30 * 60 * 1000; // only act on runs from the last 30 min
+            const WINDOW_MS = 60 * 60 * 1000; // only act on runs from the last 60 min (covers queued->failed transitions)
             const SELF = ".github/workflows/retry-failed.yml";
             const now = Date.now();
 
@@ -61,15 +61,10 @@ jobs:
                   skipped++; // a step ran -> real failure, leave it for a human
                   continue;
                 }
-                // Avoid re-rerunning the same commit over and over: if a newer run for
-                // this sha already exists (queued / in_progress / success), skip the old one.
-                const newer = runs.find(r2 =>
-                  r2.head_sha === run.head_sha &&
-                  r2.id !== run.id &&
-                  (r2.status === "queued" || r2.status === "in_progress" || r2.conclusion === "success")
-                );
-                if (newer) {
-                  core.info(`Skip run ${run.id} (${run.name}): newer run ${newer.id} for sha ${run.head_sha} already in flight`);
+                // Only retry the latest commit's runs. Older shas are superseded by a
+                // newer push, so re-running them would just regenerate identical output.
+                if (run.head_sha !== context.sha) {
+                  core.info(`Skip run ${run.id} (${run.name}): sha ${run.head_sha} superseded by ${context.sha}`);
                   skipped++;
                   continue;
                 }
