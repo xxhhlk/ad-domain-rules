@@ -61,13 +61,12 @@ jobs:
                   skipped++; // a step ran -> real failure, leave it for a human
                   continue;
                 }
-                // Only retry the latest commit's runs. Older shas are superseded by a
-                // newer push, so re-running them would just regenerate identical output.
-                if (run.head_sha !== context.sha) {
-                  core.info(`Skip run ${run.id} (${run.name}): sha ${run.head_sha} superseded by ${context.sha}`);
-                  skipped++;
-                  continue;
-                }
+                // Retry regardless of which commit the failed run was on. A
+                // runner-acquisition failure is purely infra (no job ever started),
+                // so re-running it is always safe -- the commit content is irrelevant
+                // and the workflow only commits when its generated output actually
+                // changes. This also recovers failures on older commits (e.g. a
+                // separate workflow's run that predates the current HEAD).
                 core.info(`Re-running run ${run.id} (${run.name}) created ${run.created_at} -- no jobs (runner not acquired)`);
                 await github.rest.actions.reRunWorkflow({ owner, repo, run_id: run.id });
                 retried++;
