@@ -104,11 +104,22 @@ anti-HTTPDNS community lists.
 
 The `Update Shadowrocket Modules` workflow checks out and runs the
 [Script-Hub source](https://github.com/SCript-Hub-Org/Script-Hub) locally. It
-does not call the hosted conversion website. The generated files are:
+does not call the hosted conversion website. It converts a few Quantumult X
+rewrite snippets into Shadowrocket modules, published here:
 
 - `shadowrocket/rewrite.sgmodule`
 - `shadowrocket/XWebAds.sgmodule`
 - `shadowrocket/weibo.sgmodule`
 
-The workflow runs weekly, on changes to its workflow/converter files, or
-manually from the Actions tab.
+Install in Shadowrocket by opening the raw file directly (each is a static
+`.sgmodule` you can subscribe to or import):
+
+```text
+https://raw.githubusercontent.com/xxhhlk/ad-domain-rules/main/shadowrocket/rewrite.sgmodule
+https://raw.githubusercontent.com/xxhhlk/ad-domain-rules/main/shadowrocket/XWebAds.sgmodule
+https://raw.githubusercontent.com/xxhhlk/ad-domain-rules/main/shadowrocket/weibo.sgmodule
+```
+
+In Shadowrocket: **Modules → Add Module → (paste the raw URL or import the
+file)**, then enable it in your config. The workflow refreshes them weekly, on
+changes to its own workflow/converter files, or manually from the Actions tab.
