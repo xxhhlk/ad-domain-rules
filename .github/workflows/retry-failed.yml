@@ -1,0 +1,84 @@
+name: Retry Failed Runs (Watchdog)
+
+# Auto-recovers transient GitHub-hosted-runner provisioning failures.
+#
+# Symptom this handles: a run fails/cancels with
+#   "The job was not acquired by Runner of type hosted even after multiple attempts"
+# That failure happens BEFORE any job/step starts, so it cannot be caught from
+# inside the failing workflow (continue-on-error / timeout / retry-actions do not apply).
+#
+# This watchdog re-runs such runs automatically. It ONLY targets runs where NO job
+# ever executed (jobs.total_count === 0) -- the hallmark of a runner-acquisition
+# failure. Genuine build errors always have at least one step that ran, so they are
+# left alone and will NOT be masked.
+
+on:
+  schedule:
+    # Every 15 minutes.
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  actions: write   # required to re-run workflows via the API
+  contents: read
+
+concurrency:
+  group: retry-watchdog
+  cancel-in-progress: false
+
+jobs:
+  retry:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Re-run runs that never acquired a runner
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const WINDOW_MS = 30 * 60 * 1000; // only act on runs from the last 30 min
+            const SELF = ".github/workflows/retry-failed.yml";
+            const now = Date.now();
+
+            // Pull recent runs, then filter client-side.
+            const runs = await github.paginate(github.rest.actions.listRepositoryWorkflowRuns, {
+              owner, repo, per_page: 100,
+            });
+
+            const candidates = runs.filter(r =>
+              r.path !== SELF &&                                   // don't churn on ourselves
+              (r.conclusion === "failure" || r.conclusion === "cancelled") &&
+              (now - new Date(r.created_at).getTime()) < WINDOW_MS
+            );
+
+            let retried = 0, skipped = 0, errored = 0;
+            for (const run of candidates) {
+              try {
+                const jobs = await github.rest.actions.listJobsForWorkflowRun({
+                  owner, repo, run_id: run.id,
+                });
+                // A runner-acquisition failure has zero jobs (nothing ever executed).
+                if (jobs.total_count !== 0) {
+                  skipped++; // a step ran -> real failure, leave it for a human
+                  continue;
+                }
+                // Avoid re-rerunning the same commit over and over: if a newer run for
+                // this sha already exists (queued / in_progress / success), skip the old one.
+                const newer = runs.find(r2 =>
+                  r2.head_sha === run.head_sha &&
+                  r2.id !== run.id &&
+                  (r2.status === "queued" || r2.status === "in_progress" || r2.conclusion === "success")
+                );
+                if (newer) {
+                  core.info(`Skip run ${run.id} (${run.name}): newer run ${newer.id} for sha ${run.head_sha} already in flight`);
+                  skipped++;
+                  continue;
+                }
+                core.info(`Re-running run ${run.id} (${run.name}) created ${run.created_at} -- no jobs (runner not acquired)`);
+                await github.rest.actions.reRunWorkflow({ owner, repo, run_id: run.id });
+                retried++;
+              } catch (e) {
+                core.warning(`Failed to inspect/rerun run ${run.id}: ${e.message}`);
+                errored++;
+              }
+            }
+            core.info(`Watchdog done -- retried=${retried} skipped=${skipped} errored=${errored}`);
