@@ -69,8 +69,6 @@ SOURCES = [
     "https://globalbal.xxhhlk.com:8880/rawgoodhouse/VirgilClyne/GetSomeFries/refs/heads/main/ruleset/HTTPDNS.Block.list",
     # --- AdGuard-AntiPCDN-Rules ---
     "https://globalbal.xxhhlk.com:8880/rawgoodhouse/xianhongtao/AdGuard-AntiPCDN-Rules/refs/heads/main/adguard.txt",
-    # --- Cats-Team AdRules DNS rules ---
-    "https://globalbal.xxhhlk.com:8880/rawgoodhouse/Cats-Team/AdRules/refs/heads/script/mod/rules/dns-rules.txt",
     # --- miaoermua AdguardFilter ---
     "https://globalbal.xxhhlk.com:8880/rawgoodhouse/miaoermua/AdguardFilter/main/rule.txt",
     # --- ShadowWhisperer BlockLists (DNS resolvers) ---
