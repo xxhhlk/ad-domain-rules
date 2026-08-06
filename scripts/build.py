@@ -65,7 +65,9 @@ SOURCES = [
     "https://globalbal.xxhhlk.com:8880/rawgoodhouse/Womsxd/MyAdBlockRules/refs/heads/master/p2pcdnblock.txt",
     "https://globalbal.xxhhlk.com:8880/rawgoodhouse/Womsxd/MyAdBlockRules/refs/heads/master/httpdnsblock.txt",
     # --- GetSomeFries HTTPDNS block (Surge DOMAIN, style) ---
-    "https://globalbal.xxhhlk.com:8880/rawgoodhouse/VirgilClyne/GetSomeFries/main/ruleset/HTTPDNS.Block.list",
+    # The two URL spellings (with/without refs/heads) resolve to the same file,
+    # so we keep only the GitHub-recommended refs/heads form to avoid a redundant
+    # fetch.
     "https://globalbal.xxhhlk.com:8880/rawgoodhouse/VirgilClyne/GetSomeFries/refs/heads/main/ruleset/HTTPDNS.Block.list",
     # --- AdGuard-AntiPCDN-Rules ---
     "https://globalbal.xxhhlk.com:8880/rawgoodhouse/xianhongtao/AdGuard-AntiPCDN-Rules/refs/heads/main/adguard.txt",
