@@ -6,11 +6,28 @@ AdGuard Home / anti-PCDN / anti-HTTPDNS rule sources.
 ## Output
 
 - **`ad-domain-set.txt`** — a sorted, de-duplicated list of domains in Surge
-  **DOMAIN-SET** format. Every entry uses the leading-dot (`.example.com`) form,
-  which Surge treats as `DOMAIN-SUFFIX`: it blocks the domain **and all of its
-  subdomains** (this is the form AdGuard's `||example.com^` maps to and is what
-  ad/PCDN/HTTPDNS filtering needs). A bare `example.com` (no dot) would be an
-  exact match only and would miss subdomains, so it is never emitted.
+  **DOMAIN-SET** format. The conversion is *semantic*: each source rule type is
+  mapped to the Surge form that preserves its original blocking scope (per the
+  AdGuard DNS filtering syntax and Surge's domain-set spec). Three line forms
+  may appear:
+
+  | Source rule (AdGuard)        | Original scope              | Surge line form     | Meaning in Surge            |
+  |------------------------------|-----------------------------|---------------------|-----------------------------|
+  | `\|\|example.com^` (no `*`)  | domain **+ all subdomains** | `.example.com`      | `DOMAIN-SUFFIX` (dom + subs)|
+  | `\|\|*.example.com^`         | **subdomains only**         | `*.example.com`     | subdomains only, not base   |
+  | `example.com` (plain)        | domain **only** (no subs)   | `example.com`       | `DOMAIN` exact match        |
+  | `0.0.0.0 example.com` (hosts)| host **only** (no subs)     | `example.com`       | `DOMAIN` exact match        |
+  | `DOMAIN,example.com`         | exact                       | `example.com`       | `DOMAIN` exact match        |
+  | `DOMAIN-SUFFIX,example.com`  | dom + subdomains            | `.example.com`      | `DOMAIN-SUFFIX`             |
+
+  Notes:
+  - A domain that appears both as an exact match **and** a subdomain-only match
+    is merged to the suffix form `.domain` (the union of the two intents).
+  - AdGuard wildcard rules whose `*` is **not** a lone leading label
+    (e.g. `||prebid-*.rubiconproject.com^`, `||*example.com^`, `||ex.*^`) cannot
+    be expressed faithfully in a Surge domain-set without over-blocking, so they
+    are skipped. Most of their parent domains are already covered by a
+    `||domain^` suffix rule anyway.
 
   Use it directly as a Surge domain-set:
 
@@ -27,14 +44,18 @@ A GitHub Actions workflow (`.github/workflows/update.yml`) runs
 `scripts/build.py` on a weekly schedule and on manual dispatch. The script:
 
 1. Downloads every source listed in `SOURCES` inside `scripts/build.py`.
-2. Parses each line and extracts domains from several syntaxes:
-   - AdGuard Home: `||example.com^`, `||example.com^$important`, `||*.example.com^`
-   - Hosts style: `0.0.0.0 example.com`
-   - Plain domains: `example.com`
-   - Surge/Clash style: `DOMAIN,example.com`, `DOMAIN-SUFFIX,example.com`
+2. Parses each line and extracts domains, preserving scope per rule type:
+   - AdGuard Home: `||example.com^` → suffix `.example.com`;
+     `||*.example.com^` → subdomain-only `*.example.com`;
+     `||sub.example.com^` → suffix `.sub.example.com`.
+   - Hosts style: `0.0.0.0 example.com` → exact `example.com`.
+   - Plain domains: `example.com` → exact `example.com`.
+   - Surge/Clash style: `DOMAIN,example.com` → exact; `DOMAIN-SUFFIX,…` → suffix.
 3. Drops comments, cosmetic rules, regex rules, whitelist exceptions (`@@…`),
-   disabled meta-rules (`$badfilter`) and anything that is not a valid domain.
-4. Sorts and de-duplicates, then writes `ad-domain-set.txt` and commits it back.
+   rule-level negations (`-…` / `||-…`), disabled meta-rules (`$badfilter`) and
+   anything that is not a valid domain.
+4. Sorts and de-duplicates, merging per-domain forms, then writes
+   `ad-domain-set.txt` and commits it back.
 
 If a single source is temporarily unreachable, the build continues with the
 others and just logs a warning — it never fails the whole job because one

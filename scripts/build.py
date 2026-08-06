@@ -1,18 +1,31 @@
 #!/usr/bin/env python3
 """Convert AdGuard Home filter rules from multiple sources into a Surge domain-set file.
 
-Supported input syntaxes (auto-detected per line):
-  - AdGuard Home:  ||example.com^   ||example.com^$important   ||*.example.com^
-  - AdGuard w/ wildcard in the middle:  ||*pcdn*.biliapi.net^$important
-  - Hosts style:   0.0.0.0 example.com   /   127.0.0.1 example.com
-  - Plain domain:  example.com
-  - Surge/Clash style:  DOMAIN,example.com   DOMAIN-SUFFIX,example.com
+The conversion is *semantic* -- each source rule type maps to the Surge
+domain-set form that preserves its original blocking scope (per the AdGuard
+DNS filtering syntax docs and Surge's domain-set spec):
 
-Lines that are skipped on purpose:
-  - comments (! or #), cosmetic rules (## #@# #?# #$#)
-  - regex rules (/.../), whitelist exceptions (@@...)
-  - disabled meta-rules ($badfilter)
-  - IP addresses and anything that is not a valid domain
+  AdGuard rule                       AdGuard scope              Surge form
+  --------------------------------  -------------------------  --------------------------
+  ||example.com^        (no *)      domain + all subdomains    .example.com   (suffix)
+  ||*.example.com^                    subdomains ONLY           *.example.com  (sub-only)
+  ||sub.example.com^    (no *)      sub.example.com + subs     .sub.example.com (suffix)
+  example.com           (plain)     domain ONLY (no subs)      example.com    (exact)
+  0.0.0.0 example.com   (hosts)     host ONLY (no subs)        example.com    (exact)
+  DOMAIN,example.com                  exact                     example.com    (exact)
+  DOMAIN-SUFFIX,example.com           suffix                    .example.com   (suffix)
+
+Notes:
+  * A rule present as both "exact" and "sub-only" is merged to "suffix"
+    (domain + subdomains = the union of the two intents).
+  * AdGuard wildcard rules whose '*' is NOT a lone leading label
+    (e.g. ||prebid-*.rubiconproject.com^, ||*example.com^, ||ex.*^) cannot be
+    expressed faithfully in a Surge domain-set without over-blocking, so they
+    are skipped on purpose. In practice most of their parent domains are
+    already covered by a ||domain^ suffix rule.
+  * Comments (!/#), cosmetic rules (## #@# #?# #$#), regex (/.../),
+    whitelist exceptions (@@...), rule-level negations (-... / ||-...), and
+    disabled meta-rules ($badfilter) are all skipped.
 """
 import re
 import ssl
@@ -111,6 +124,14 @@ def normalize(raw):
 
 
 def extract(line):
+    """Return (form, domain) where form is one of 'suffix' / 'subonly' / 'exact',
+    or None if the line is not a usable blocking rule.
+
+    Surge domain-set forms:
+      'suffix'  -> ".domain"   (DOMAIN-SUFFIX: domain + all subdomains)
+      'subonly' -> "*.domain"  (subdomains only, NOT the domain itself)
+      'exact'   -> "domain"    (DOMAIN: exact match, no subdomains)
+    """
     s = line.strip()
     if not s:
         return None
@@ -134,26 +155,50 @@ def extract(line):
     # Surge / Clash style: DOMAIN,x  /  DOMAIN-SUFFIX,x
     m = SURGE_RE.match(s)
     if m:
-        return normalize(m.group(1))
+        dom = normalize(m.group(1))
+        if not dom:
+            return None
+        return ("suffix" if s.upper().startswith("DOMAIN-SUFFIX") else "exact", dom)
     # AdGuard Home style: ||domain^  (modifiers after ^ or $)
     if s.startswith("||"):
         rest = s[2:]
         if rest.startswith("-"):  # ||-domain^ is also a negation rule
             return None
         cand = re.split(r"[\^\$]", rest, maxsplit=1)[0]
-        return normalize(cand)
-    # Hosts style:  IP  domain
+        if "*" in cand:
+            # The only wildcard we can express faithfully is a lone leading '*'
+            # as the whole first label: ||*.example.com^  ->  *.example.com
+            # (subdomains only, NOT the base domain). Anything else
+            # (||prebid-*.x^, ||*x^, ||x*^, ||x.*^) cannot be represented in a
+            # Surge domain-set without over-blocking, so we drop it.
+            if cand.startswith("*.") and "*" not in cand[2:]:
+                dom = normalize(cand[2:])
+                if dom:
+                    return ("subonly", dom)
+            return None
+        dom = normalize(cand)
+        if dom:
+            return ("suffix", dom)
+        return None
+    # Hosts style:  IP  domain  -> host only, not its subdomains.
     m = HOSTS_RE.match(s)
     if m:
-        return normalize(m.group(2))
-    # Plain domain line.
+        dom = normalize(m.group(2))
+        if dom:
+            return ("exact", dom)
+        return None
+    # Plain domain line -> domain only, not its subdomains.
     if DOMAIN_RE.match(s):
-        return normalize(s)
+        dom = normalize(s)
+        if dom:
+            return ("exact", dom)
+        return None
     return None
 
 
 def main():
-    domains = set()
+    # domain -> set of forms seen ('suffix' / 'subonly' / 'exact')
+    forms = {}
     stats = {"sources": 0, "failed": 0, "lines": 0}
     for url in SOURCES:
         stats["sources"] += 1
@@ -165,26 +210,44 @@ def main():
             continue
         for line in text.splitlines():
             stats["lines"] += 1
-            dom = extract(line)
-            if dom:
-                domains.add(dom)
+            r = extract(line)
+            if r is None:
+                continue
+            form, dom = r
+            forms.setdefault(dom, set()).add(form)
 
-    # Surge DOMAIN-SET semantics: a bare "example.com" is an EXACT match (does
-    # not catch subdomains), while a leading-dot ".example.com" is a
-    # DOMAIN-SUFFIX match (catches the domain AND all subdomains) -- this is the
-    # form AdGuard's ||domain^ maps to and is what ad filtering wants. So we
-    # always emit the leading-dot form.
-    out = sorted(domains)
+    # Merge forms per domain into a single Surge line:
+    #   - 'suffix' present                       -> ".domain"
+    #   - 'exact' + 'subonly' (union = dom+subs) -> ".domain"
+    #   - 'subonly' only                         -> "*.domain"
+    #   - 'exact' only                           -> "domain"
+    out = []
+    n_suffix = n_subonly = n_exact = 0
+    for dom in sorted(forms):
+        f = forms[dom]
+        if "suffix" in f or ("subonly" in f and "exact" in f):
+            out.append("." + dom)
+            n_suffix += 1
+        elif "subonly" in f:
+            out.append("*." + dom)
+            n_subonly += 1
+        else:
+            out.append(dom)
+            n_exact += 1
+
     with open(OUTPUT, "w", encoding="utf-8") as fh:
         if out:
-            fh.write("\n".join("." + d for d in out) + "\n")
+            fh.write("\n".join(out) + "\n")
 
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     print(
         f"[INFO] sources={stats['sources']} failed={stats['failed']} "
         f"lines_scanned={stats['lines']} unique_domains={len(out)}"
     )
-    print(f"[INFO] wrote {len(out)} domains to {OUTPUT} ({ts})")
+    print(
+        f"[INFO] forms -> suffix={n_suffix} subonly={n_subonly} exact={n_exact} "
+        f"(all in {OUTPUT}, {ts})"
+    )
 
 
 if __name__ == "__main__":
