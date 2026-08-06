@@ -1,0 +1,109 @@
+name: Update Shadowrocket Modules
+
+on:
+  schedule:
+    # Refresh upstream Quantumult X snippets every Monday at 04:17 UTC.
+    - cron: "17 4 * * 1"
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/update-shadowrocket-modules.yml"
+      - "scripts/update_shadowrocket_modules.py"
+
+permissions:
+  contents: write
+
+concurrency:
+  # Share the lock with the existing list-builder workflow because both jobs
+  # commit generated files back to main.
+  group: build-lists
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout ad-domain-rules
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout Script-Hub source
+        uses: actions/checkout@v4
+        with:
+          repository: SCript-Hub-Org/Script-Hub
+          ref: main
+          path: .script-hub
+          fetch-depth: 1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .script-hub/.nvmrc
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.1.0
+
+      - name: Install Script-Hub dependencies
+        working-directory: .script-hub
+        run: pnpm install --prod --no-frozen-lockfile
+
+      - name: Start local Script-Hub service
+        working-directory: .script-hub
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The service runs locally, but any dynamic Script-Hub helper URLs
+          # emitted into a module must remain usable after the job finishes.
+          BASE_URL=https://script.hub \
+          BETA_BASE_URL=https://script.hub \
+            nohup node service.js > "$RUNNER_TEMP/script-hub.log" 2>&1 &
+          echo "$!" > "$RUNNER_TEMP/script-hub.pid"
+
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error --max-time 10 \
+              http://127.0.0.1:9100/ >/dev/null; then
+              echo "Script-Hub source service is ready."
+              exit 0
+            fi
+            sleep 1
+          done
+
+          echo "Script-Hub source service did not start:" >&2
+          cat "$RUNNER_TEMP/script-hub.log" >&2
+          exit 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Convert Quantumult X snippets with local Script-Hub source
+        env:
+          SCRIPTHUB_BASE_URL: http://127.0.0.1:9100
+        run: python scripts/update_shadowrocket_modules.py
+
+      - name: Commit and push updated modules
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add shadowrocket
+          if git diff --cached --quiet; then
+            echo "No Shadowrocket module changes."
+          else
+            git commit -m "chore: update Shadowrocket modules ($(date -u +%Y-%m-%d))"
+            git push
+          fi
+
+      - name: Stop local Script-Hub service
+        if: always()
+        shell: bash
+        run: |
+          if [ -f "$RUNNER_TEMP/script-hub.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/script-hub.pid")" 2>/dev/null || true
+          fi

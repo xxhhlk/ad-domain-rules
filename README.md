@@ -99,3 +99,16 @@ anti-HTTPDNS community lists.
 - Weekly (Mondays, 03:17 UTC) via the scheduled workflow.
 - Immediately after any change to `scripts/` or the workflow file (push event).
 - On demand from the **Actions → Build Surge Domain-Set → Run workflow** button.
+
+## Shadowrocket modules
+
+The `Update Shadowrocket Modules` workflow checks out and runs the
+[Script-Hub source](https://github.com/SCript-Hub-Org/Script-Hub) locally. It
+does not call the hosted conversion website. The generated files are:
+
+- `shadowrocket/rewrite.sgmodule`
+- `shadowrocket/XWebAds.sgmodule`
+- `shadowrocket/weibo.sgmodule`
+
+The workflow runs weekly, on changes to its workflow/converter files, or
+manually from the Actions tab.

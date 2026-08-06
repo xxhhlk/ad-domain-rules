@@ -1,0 +1,35 @@
+# Python bytecode, caches, virtual environments, and local test output
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.venv/
+venv/
+*.egg-info/
+
+# Node.js dependencies and logs from the local Script-Hub checkout/service
+node_modules/
+.script-hub/
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local environment files and secrets
+.env
+.env.*
+!.env.example
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+Desktop.ini
+.vscode/
+.idea/
+*.swp
+*.swo
