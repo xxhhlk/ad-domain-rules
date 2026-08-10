@@ -57,26 +57,26 @@ SOURCES = [
     "https://adguardteam.github.io/HostlistsRegistry/assets/filter_50.txt",
     "https://adguardteam.github.io/HostlistsRegistry/assets/filter_11.txt",
     # --- anti-AD (discretion branch) ---
-    "https://globalbal.xxhhlk.com:8880/rawgoodhouse/privacy-protection-tools/anti-AD/refs/heads/master/discretion/pcdn.txt",
-    "https://globalbal.xxhhlk.com:8880/rawgoodhouse/privacy-protection-tools/anti-AD/refs/heads/master/discretion/dns.txt",
+    "https://globalbal.xxhhlk.com:12843/H94Tupd84M/rawgoodhouse/privacy-protection-tools/anti-AD/refs/heads/master/discretion/pcdn.txt",
+    "https://globalbal.xxhhlk.com:12843/H94Tupd84M/rawgoodhouse/privacy-protection-tools/anti-AD/refs/heads/master/discretion/dns.txt",
     # --- PCDN / p2pcdn blocklists ---
-    "https://globalbal.xxhhlk.com:8880/rawgoodhouse/susetao/PCDNFilter-CHN-/refs/heads/main/PCDNFilter.txt",
-    "https://globalbal.xxhhlk.com:8880/rawgoodhouse/thhbdd/Block-pcdn-domains/refs/heads/main/ban.txt",
-    "https://globalbal.xxhhlk.com:8880/rawgoodhouse/Womsxd/MyAdBlockRules/refs/heads/master/p2pcdnblock.txt",
-    "https://globalbal.xxhhlk.com:8880/rawgoodhouse/Womsxd/MyAdBlockRules/refs/heads/master/httpdnsblock.txt",
+    "https://globalbal.xxhhlk.com:12843/H94Tupd84M/rawgoodhouse/susetao/PCDNFilter-CHN-/refs/heads/main/PCDNFilter.txt",
+    "https://globalbal.xxhhlk.com:12843/H94Tupd84M/rawgoodhouse/thhbdd/Block-pcdn-domains/refs/heads/main/ban.txt",
+    "https://globalbal.xxhhlk.com:12843/H94Tupd84M/rawgoodhouse/Womsxd/MyAdBlockRules/refs/heads/master/p2pcdnblock.txt",
+    "https://globalbal.xxhhlk.com:12843/H94Tupd84M/rawgoodhouse/Womsxd/MyAdBlockRules/refs/heads/master/httpdnsblock.txt",
     # --- GetSomeFries HTTPDNS block (Surge DOMAIN, style) ---
     # The two URL spellings (with/without refs/heads) resolve to the same file,
     # so we keep only the GitHub-recommended refs/heads form to avoid a redundant
     # fetch.
-    "https://globalbal.xxhhlk.com:8880/rawgoodhouse/VirgilClyne/GetSomeFries/refs/heads/main/ruleset/HTTPDNS.Block.list",
+    "https://globalbal.xxhhlk.com:12843/H94Tupd84M/rawgoodhouse/VirgilClyne/GetSomeFries/refs/heads/main/ruleset/HTTPDNS.Block.list",
     # --- AdGuard-AntiPCDN-Rules ---
-    "https://globalbal.xxhhlk.com:8880/rawgoodhouse/xianhongtao/AdGuard-AntiPCDN-Rules/refs/heads/main/adguard.txt",
+    "https://globalbal.xxhhlk.com:12843/H94Tupd84M/rawgoodhouse/xianhongtao/AdGuard-AntiPCDN-Rules/refs/heads/main/adguard.txt",
     # --- miaoermua AdguardFilter ---
-    "https://globalbal.xxhhlk.com:8880/rawgoodhouse/miaoermua/AdguardFilter/main/rule.txt",
+    "https://globalbal.xxhhlk.com:12843/H94Tupd84M/rawgoodhouse/miaoermua/AdguardFilter/main/rule.txt",
     # --- ShadowWhisperer BlockLists (DNS resolvers) ---
-    "https://globalbal.xxhhlk.com:8880/rawgoodhouse/ShadowWhisperer/BlockLists/refs/heads/master/Lists/DNS",
+    "https://globalbal.xxhhlk.com:12843/H94Tupd84M/rawgoodhouse/ShadowWhisperer/BlockLists/refs/heads/master/Lists/DNS",
     # --- Live AdGuardHome rule dump ---
-    "https://globalbal.xxhhlk.com:8880/agh-api/rules",
+    "https://globalbal.xxhhlk.com:12843/O0mT0hY0ki/agh-api/rules",
 ]
 
 OUTPUT = "ad-domain-set.txt"
@@ -84,7 +84,7 @@ TIMEOUT = 60
 USER_AGENT = "ad-domain-rules-builder/1.0"
 
 # Live AdGuardHome IP dump, converted into a Surge IP rule-set (action baked in).
-IP_SOURCE = "https://globalbal.xxhhlk.com:8880/agh-api/ips"
+IP_SOURCE = "https://globalbal.xxhhlk.com:12843/O0mT0hY0ki/agh-api/ips"
 IP_OUTPUT = "ad-ip-ruleset.txt"
 IP_POLICY = "REJECT-NO-DROP"
 
