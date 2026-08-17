@@ -57,25 +57,22 @@ SOURCES = [
     "https://adguardteam.github.io/HostlistsRegistry/assets/filter_50.txt",
     "https://adguardteam.github.io/HostlistsRegistry/assets/filter_11.txt",
     # --- anti-AD (discretion branch) ---
-    "https://globalbal.xxhhlk.com:12843/H94Tupd84M/rawgoodhouse/privacy-protection-tools/anti-AD/refs/heads/master/discretion/pcdn.txt",
-    "https://globalbal.xxhhlk.com:12843/H94Tupd84M/rawgoodhouse/privacy-protection-tools/anti-AD/refs/heads/master/discretion/dns.txt",
+    "https://raw.githubusercontent.com/privacy-protection-tools/anti-AD/master/discretion/pcdn.txt",
+    "https://raw.githubusercontent.com/privacy-protection-tools/anti-AD/master/discretion/dns.txt",
     # --- PCDN / p2pcdn blocklists ---
-    "https://globalbal.xxhhlk.com:12843/H94Tupd84M/rawgoodhouse/susetao/PCDNFilter-CHN-/refs/heads/main/PCDNFilter.txt",
-    "https://globalbal.xxhhlk.com:12843/H94Tupd84M/rawgoodhouse/thhbdd/Block-pcdn-domains/refs/heads/main/ban.txt",
-    "https://globalbal.xxhhlk.com:12843/H94Tupd84M/rawgoodhouse/Womsxd/MyAdBlockRules/refs/heads/master/p2pcdnblock.txt",
-    "https://globalbal.xxhhlk.com:12843/H94Tupd84M/rawgoodhouse/Womsxd/MyAdBlockRules/refs/heads/master/httpdnsblock.txt",
+    "https://raw.githubusercontent.com/susetao/PCDNFilter-CHN-/main/PCDNFilter.txt",
+    "https://raw.githubusercontent.com/thhbdd/Block-pcdn-domains/main/ban.txt",
+    "https://raw.githubusercontent.com/Womsxd/MyAdBlockRules/master/p2pcdnblock.txt",
+    "https://raw.githubusercontent.com/Womsxd/MyAdBlockRules/master/httpdnsblock.txt",
     # --- GetSomeFries HTTPDNS block (Surge DOMAIN, style) ---
-    # The two URL spellings (with/without refs/heads) resolve to the same file,
-    # so we keep only the GitHub-recommended refs/heads form to avoid a redundant
-    # fetch.
-    "https://globalbal.xxhhlk.com:12843/H94Tupd84M/rawgoodhouse/VirgilClyne/GetSomeFries/refs/heads/main/ruleset/HTTPDNS.Block.list",
+    "https://raw.githubusercontent.com/VirgilClyne/GetSomeFries/main/ruleset/HTTPDNS.Block.list",
     # --- AdGuard-AntiPCDN-Rules ---
-    "https://globalbal.xxhhlk.com:12843/H94Tupd84M/rawgoodhouse/xianhongtao/AdGuard-AntiPCDN-Rules/refs/heads/main/adguard.txt",
+    "https://raw.githubusercontent.com/xianhongtao/AdGuard-AntiPCDN-Rules/main/adguard.txt",
     # --- miaoermua AdguardFilter ---
-    "https://globalbal.xxhhlk.com:12843/H94Tupd84M/rawgoodhouse/miaoermua/AdguardFilter/main/rule.txt",
+    "https://raw.githubusercontent.com/miaoermua/AdguardFilter/main/rule.txt",
     # --- ShadowWhisperer BlockLists (DNS resolvers) ---
-    "https://globalbal.xxhhlk.com:12843/H94Tupd84M/rawgoodhouse/ShadowWhisperer/BlockLists/refs/heads/master/Lists/DNS",
-    # --- Live AdGuardHome rule dump ---
+    "https://raw.githubusercontent.com/ShadowWhisperer/BlockLists/master/Lists/DNS",
+    # --- Live AdGuardHome rule dump (self-hosted AGH API, not a GitHub mirror) ---
     "https://globalbal.xxhhlk.com:12843/O0mT0hY0ki/agh-api/rules",
 ]
 
