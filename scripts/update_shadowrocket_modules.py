@@ -74,6 +74,34 @@ def validate_module(name: str, content: str) -> None:
         raise RuntimeError(f"Script-Hub output for {name} has no Shadowrocket module section")
 
 
+def _strip_ithome(content: str) -> str:
+    """Drop rules that target ithome.com from a module's content.
+
+    Script lines mentioning ithome.com are removed entirely.  A MITM
+    ``hostname = ...`` line is a shared domain list, so only the
+    ithome.com entry is dropped and the rest of the line is kept.
+    """
+    pattern = re.compile(r"ithome(?:\.|\\\.)com", re.IGNORECASE)
+    out: list[str] = []
+    for line in content.splitlines():
+        if not pattern.search(line):
+            out.append(line)
+            continue
+        stripped = line.strip()
+        if stripped.startswith("hostname") and "=" in line:
+            key, _, rest = line.partition("=")
+            keep = [
+                part.strip()
+                for part in rest.split(",")
+                if part.strip() and not pattern.search(part)
+            ]
+            if keep:
+                out.append(key + "= " + ", ".join(keep))
+            continue
+        # Any other line referencing ithome.com is dropped.
+    return "\n".join(out)
+
+
 def update_modules(base_url: str) -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     pending: list[tuple[Path, Path]] = []
@@ -84,6 +112,9 @@ def update_modules(base_url: str) -> None:
             endpoint = conversion_url(base_url, name, source_url)
             print(f"Converting {source_url} -> {OUTPUT_DIR / (name + '.sgmodule')}")
             content = fetch_module(endpoint)
+            if name == "rewrite":
+                # The upstream snippet bundles ithome.com rules; drop them.
+                content = _strip_ithome(content)
             validate_module(name, content)
             temporary_output = temp_root / f"{name}.sgmodule"
             temporary_output.write_text(content, encoding="utf-8", newline="\n")
