@@ -100,6 +100,9 @@ jobs:
             echo "No Shadowrocket module changes."
           else
             git commit -m "chore: update Shadowrocket modules ($(date -u +%Y-%m-%d))"
+            # The sibling Surge workflow can push first; rebase onto latest
+            # main so this push stays fast-forward.
+            git pull --rebase origin main
             git push
           fi
 
