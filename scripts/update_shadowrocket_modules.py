@@ -74,14 +74,19 @@ def validate_module(name: str, content: str) -> None:
         raise RuntimeError(f"Script-Hub output for {name} has no Shadowrocket module section")
 
 
-def _strip_ithome(content: str) -> str:
-    """Drop rules that target ithome.com from a module's content.
+def _strip_domains(content: str, domains: tuple[str, ...]) -> str:
+    """Drop rules that target any of the given domains from a module's content.
 
-    Script lines mentioning ithome.com are removed entirely.  A MITM
-    ``hostname = ...`` line is a shared domain list, so only the
-    ithome.com entry is dropped and the rest of the line is kept.
+    Lines (scripts, comments, URL rewrites) mentioning a domain are removed
+    entirely.  A MITM ``hostname = ...`` line is a shared domain list, so only
+    the matching entries are dropped and the rest of the line is kept.
     """
-    pattern = re.compile(r"ithome(?:\.|\\\.)com", re.IGNORECASE)
+    # Each domain's dots may appear plain (hostname lists) or backslash-escaped
+    # (regex-style rules), e.g. dfcfw.com vs j5\.dfcfw\.com.
+    pattern = re.compile(
+        "|".join(domain.replace(".", r"(?:\.|\\\.)") for domain in domains),
+        re.IGNORECASE,
+    )
     out: list[str] = []
     for line in content.splitlines():
         if not pattern.search(line):
@@ -98,7 +103,7 @@ def _strip_ithome(content: str) -> str:
             if keep:
                 out.append(key + "= " + ", ".join(keep))
             continue
-        # Any other line referencing ithome.com is dropped.
+        # Any other line referencing one of the domains is dropped.
     return "\n".join(out)
 
 
@@ -113,8 +118,9 @@ def update_modules(base_url: str) -> None:
             print(f"Converting {source_url} -> {OUTPUT_DIR / (name + '.sgmodule')}")
             content = fetch_module(endpoint)
             if name == "rewrite":
-                # The upstream snippet bundles ithome.com rules; drop them.
-                content = _strip_ithome(content)
+                # The upstream snippet bundles rules we do not want; drop
+                # lines and hostname entries targeting these domains.
+                content = _strip_domains(content, ("ithome.com", "dfcfw.com"))
             validate_module(name, content)
             temporary_output = temp_root / f"{name}.sgmodule"
             temporary_output.write_text(content, encoding="utf-8", newline="\n")
